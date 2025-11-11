@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "LaTeX",
+  "version": "1.0.0",
+  "description": "一键复制AI输出的数学公式为LaTeX格式",
+  "permissions": [
+    "activeTab",
+    "clipboardWrite"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["styles.css"]
+    }
+  ]
+}
