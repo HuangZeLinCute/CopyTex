@@ -41,7 +41,3 @@
 - MathJax渲染的公式
 - 带有`data-latex`属性的元素
 - 用`$...$`或`$$...$$`包围的LaTeX代码
-
-## 许可证
-
-MIT License
