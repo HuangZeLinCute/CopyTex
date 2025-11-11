@@ -77,6 +77,24 @@
     button.className = 'latex-floating-copy-btn';
     button.innerHTML = '复制';
     button.title = '复制LaTeX代码';
+    button.style.cssText = `
+      position: fixed !important;
+      padding: 6px 14px !important;
+      background: rgba(0, 0, 0, 0.75) !important;
+      color: white !important;
+      border: 1px solid rgba(255, 255, 255, 0.2) !important;
+      border-radius: 20px !important;
+      cursor: pointer !important;
+      font-size: 11px !important;
+      font-weight: 500 !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+      z-index: 10000 !important;
+      display: none !important;
+      pointer-events: auto !important;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+      backdrop-filter: blur(8px) !important;
+      transition: all 0.2s ease !important;
+    `;
     
     button.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -87,19 +105,19 @@
       try {
         await navigator.clipboard.writeText(latex);
         button.innerHTML = '已复制';
-        button.classList.add('success');
+        button.style.background = 'rgba(76, 175, 80, 0.8)';
         
         setTimeout(() => {
           button.innerHTML = '复制';
-          button.classList.remove('success');
+          button.style.background = 'rgba(0, 0, 0, 0.75)';
         }, 1500);
       } catch (err) {
         console.error('复制失败:', err);
         button.innerHTML = '失败';
-        button.classList.add('error');
+        button.style.background = 'rgba(244, 67, 54, 0.8)';
         setTimeout(() => {
           button.innerHTML = '复制';
-          button.classList.remove('error');
+          button.style.background = 'rgba(0, 0, 0, 0.75)';
         }, 1500);
       }
     });
