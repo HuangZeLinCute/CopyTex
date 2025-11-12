@@ -5,74 +5,73 @@
   let floatingButton = null;
   let currentFormula = null;
 
-  // 从不同格式提取LaTeX
   function extractLatex(element) {
     console.log('提取LaTeX，元素:', element);
-    
-    // 1. MathJax格式 - 查找script标签
     const mathJaxScript = element.querySelector('script[type*="math/tex"]');
-    if (mathJaxScript) {
-      console.log('找到MathJax script:', mathJaxScript.textContent);
-      return mathJaxScript.textContent.trim();
-    }
+    if (mathJaxScript) return mathJaxScript.textContent.trim();
 
-    // 2. KaTeX格式 - 查找annotation标签
     const katexAnnotation = element.querySelector('annotation[encoding="application/x-tex"]');
-    if (katexAnnotation) {
-      console.log('找到KaTeX annotation:', katexAnnotation.textContent);
-      return katexAnnotation.textContent.trim();
-    }
+    if (katexAnnotation) return katexAnnotation.textContent.trim();
 
-    // 3. 检查常见的LaTeX属性
     const latexAttrs = ['data-latex', 'data-tex', 'title'];
     for (const attr of latexAttrs) {
-      if (element.hasAttribute(attr)) {
+      if (element.hasAttribute && element.hasAttribute(attr)) {
         const value = element.getAttribute(attr);
-        if (value && value.includes('\\')) {
-          console.log('找到属性LaTeX:', attr, value);
-          return value.trim();
-        }
+        if (value && value.includes('\\')) return value.trim();
       }
     }
 
-    // 4. 检查aria-label（可能包含LaTeX）
-    if (element.hasAttribute('aria-label')) {
+    if (element.hasAttribute && element.hasAttribute('aria-label')) {
       const ariaLabel = element.getAttribute('aria-label');
-      if (ariaLabel && ariaLabel.includes('\\')) {
-        console.log('找到aria-label LaTeX:', ariaLabel);
-        return ariaLabel.trim();
-      }
+      if (ariaLabel && ariaLabel.includes('\\')) return ariaLabel.trim();
     }
 
-    // 5. 查找所有script标签（可能在子元素中）
     const allScripts = element.querySelectorAll('script');
     for (const script of allScripts) {
       if (script.type && script.type.includes('math')) {
-        console.log('找到数学script:', script.textContent);
         return script.textContent.trim();
       }
     }
 
-    // 6. 纯文本LaTeX（以$或$$包围）
     const text = element.textContent.trim();
-    if (text.startsWith('$$') && text.endsWith('$$')) {
-      console.log('找到$$包围的LaTeX:', text);
-      return text.slice(2, -2).trim();
-    }
-    if (text.startsWith('$') && text.endsWith('$') && text.length > 2) {
-      console.log('找到$包围的LaTeX:', text);
-      return text.slice(1, -1).trim();
-    }
+    if (text.startsWith('$$') && text.endsWith('$$')) return text.slice(2, -2).trim();
+    if (text.startsWith('$') && text.endsWith('$') && text.length > 2) return text.slice(1, -1).trim();
 
-    // 7. 如果都没找到，返回纯文本（可能需要用户手动处理）
-    console.log('未找到LaTeX，返回纯文本:', text);
+    const convertedLatex = convertTextToLatex(text);
+    if (convertedLatex !== text) return convertedLatex;
+
     return text;
   }
 
-  // 创建悬浮复制按钮
+  function convertTextToLatex(text) {
+    let latex = text;
+    const conversions = [
+      [/θ/g, '\\theta'], [/π/g, '\\pi'], [/α/g, '\\alpha'], [/β/g, '\\beta'], [/γ/g, '\\gamma'],
+      [/δ/g, '\\delta'], [/ε/g, '\\varepsilon'], [/λ/g, '\\lambda'], [/μ/g, '\\mu'], [/σ/g, '\\sigma'],
+      [/φ/g, '\\varphi'], [/ω/g, '\\omega'],
+      [/∞/g, '\\infty'], [/∑/g, '\\sum'], [/∫/g, '\\int'], [/√/g, '\\sqrt'], [/±/g, '\\pm'],
+      [/×/g, '\\times'], [/÷/g, '\\div'], [/≤/g, '\\leq'], [/≥/g, '\\geq'], [/≠/g, '\\neq'], [/≈/g, '\\approx'],
+      [/(\w+)²/g, '$1^2'], [/(\w+)³/g, '$1^3'], [/e\^(\w+)/g, 'e^{$1}'], [/(\w+)\^(\w+)/g, '$1^{$2}'],
+      [/ei\\pi/g, 'e^{i\\pi}'], [/ei\\theta/g, 'e^{i\\theta}'],
+      [/e\s*i\s*\\pi/g, 'e^{i\\pi}'], [/e\s*i\s*\\theta/g, 'e^{i\\theta}'],
+    ];
+    for (const [pattern, replacement] of conversions) {
+      latex = latex.replace(pattern, replacement);
+    }
+    return fixExponentNotation(latex);
+  }
+
+  function fixExponentNotation(latex) {
+    latex = latex.replace(/\bei([a-zA-Z\\]+)/g, 'e^{i$1}');
+    latex = latex.replace(/\be([a-zA-Z\\]+)(?![a-zA-Z])/g, (match, exp) => {
+      if (exp.length > 1 || exp.includes('\\')) return `e^{${exp}}`;
+      return match;
+    });
+    return latex;
+  }
+
   function createFloatingButton() {
     if (floatingButton) return floatingButton;
-
     const button = document.createElement('button');
     button.className = 'latex-floating-copy-btn';
     button.innerHTML = '复制';
@@ -95,18 +94,14 @@
       backdrop-filter: blur(8px) !important;
       transition: all 0.2s ease !important;
     `;
-    
     button.addEventListener('click', async (e) => {
       e.stopPropagation();
       if (!currentFormula) return;
-      
       const latex = extractLatex(currentFormula);
-      
       try {
         await navigator.clipboard.writeText(latex);
         button.innerHTML = '已复制';
         button.style.background = 'rgba(76, 175, 80, 0.8)';
-        
         setTimeout(() => {
           button.innerHTML = '复制';
           button.style.background = 'rgba(0, 0, 0, 0.75)';
@@ -121,103 +116,114 @@
         }, 1500);
       }
     });
-    
     document.body.appendChild(button);
     floatingButton = button;
     return button;
   }
 
-  // 显示悬浮按钮
-  function showFloatingButton(formula, event) {
+  function showFloatingButton(formula) {
     const button = createFloatingButton();
     currentFormula = formula;
-    
     const rect = formula.getBoundingClientRect();
-    button.style.left = (rect.right - 30) + 'px';
-    button.style.top = (rect.top + 2) + 'px';
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+    let left = rect.right + scrollLeft + 5;
+    let top = rect.top + scrollTop - 2;
+    const buttonWidth = 50;
+    if (left + buttonWidth > window.innerWidth + scrollLeft) {
+      left = rect.left + scrollLeft - buttonWidth - 5;
+    }
+    if (top < scrollTop) {
+      top = rect.bottom + scrollTop + 2;
+    }
+    button.style.left = left + 'px';
+    button.style.top = top + 'px';
     button.style.display = 'block';
   }
 
-  // 隐藏悬浮按钮
   function hideFloatingButton() {
-    if (floatingButton) {
-      floatingButton.style.display = 'none';
-    }
+    if (floatingButton) floatingButton.style.display = 'none';
     currentFormula = null;
   }
 
-  // 检查元素是否为数学公式
+  // 修复：更健壮的数学公式识别
   function isMathFormula(element) {
-    const mathClasses = ['katex', 'katex-display', 'MathJax', 'MathJax_Display'];
-    const mathTags = ['math'];
-    
-    // 检查类名
-    if (mathClasses.some(cls => element.classList.contains(cls))) {
+    // 只处理元素节点
+    if (!element || element.nodeType !== 1) return false;
+
+    // 可能的类名集合
+    const mathClasses = ['katex', 'katex-display', 'MathJax', 'MathJax_Display', 'math-container'];
+
+    // 优先使用 classList
+    if (element.classList && element.classList.length) {
+      for (const cls of mathClasses) {
+        if (element.classList.contains(cls)) return true;
+      }
+    }
+
+    // 归一化 className（处理 SVGAnimatedString）
+    let rawClassName = '';
+    if (typeof element.className === 'string') {
+      rawClassName = element.className;
+    } else if (element.className && typeof element.className.baseVal === 'string') {
+      rawClassName = element.className.baseVal; // SVG
+    }
+
+    if (rawClassName) {
+      // 直接匹配关键模式
+      if (/(^|\s)(katex|katex-display|MathJax|MathJax_Display|math-container)(\s|$)/.test(rawClassName)) {
+        return true;
+      }
+      if (/\b(math-|equation|formula)\b/.test(rawClassName)) {
+        return true;
+      }
+    }
+
+    // 标签名
+    if (element.tagName && typeof element.tagName === 'string') {
+      if (element.tagName.toLowerCase() === 'math') return true;
+    }
+
+    // 属性
+    if (element.hasAttribute && (element.hasAttribute('data-latex') || element.hasAttribute('data-tex'))) {
       return true;
     }
-    
-    // 检查标签名
-    if (mathTags.includes(element.tagName.toLowerCase())) {
-      return true;
-    }
-    
-    // 检查属性
-    if (element.hasAttribute('data-latex') || 
-        element.className.includes('math') || 
-        element.className.includes('equation')) {
-      return true;
-    }
-    
+
     return false;
   }
 
-  // 找到最外层的数学公式元素
   function findOutermostMathElement(element) {
+    if (!element || element.nodeType !== 1) return null;
     let current = element;
     let outermost = null;
     let depth = 0;
-    
-    // 向上查找，找到所有的数学公式元素，返回最外层的
-    while (current && depth < 10) {
-      if (isMathFormula(current)) {
-        outermost = current;
-      }
+    while (current && depth < 20) { // 增加一点深度限制
+      if (isMathFormula(current)) outermost = current;
       current = current.parentElement;
       depth++;
     }
-    
     return outermost;
   }
 
-  // 添加事件监听
   function addEventListeners() {
     let lastMathElement = null;
-
     document.addEventListener('mouseover', (e) => {
       const element = e.target;
-      
-      // 找到最外层的数学公式元素
       const mathElement = findOutermostMathElement(element);
-      
       if (mathElement && mathElement !== lastMathElement) {
         lastMathElement = mathElement;
-        showFloatingButton(mathElement, e);
+        showFloatingButton(mathElement);
       }
     });
 
     document.addEventListener('mouseout', (e) => {
       const element = e.target;
       const relatedTarget = e.relatedTarget;
-      
-      // 如果鼠标移出公式区域且不是移到按钮上，则隐藏按钮
       if (floatingButton && !floatingButton.contains(relatedTarget)) {
         const currentMathElement = findOutermostMathElement(element);
         const relatedMathElement = relatedTarget ? findOutermostMathElement(relatedTarget) : null;
-        
-        // 如果移出了当前公式且没有进入另一个公式
         if (currentMathElement && currentMathElement !== relatedMathElement) {
           setTimeout(() => {
-            // 再次检查鼠标是否在按钮上
             if (floatingButton && !floatingButton.matches(':hover')) {
               hideFloatingButton();
               lastMathElement = null;
@@ -227,7 +233,6 @@
       }
     });
 
-    // 点击其他地方时隐藏按钮
     document.addEventListener('click', (e) => {
       if (floatingButton && !floatingButton.contains(e.target)) {
         hideFloatingButton();
@@ -236,12 +241,10 @@
     });
   }
 
-  // 初始化
   function init() {
     addEventListeners();
   }
 
-  // 页面加载完成后初始化
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
